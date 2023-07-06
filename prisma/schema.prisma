@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  // relasi ke user untuk pemilik akun
+  userId String  @db.ObjectId
+  user   Panitia @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  expires      DateTime
+
+  userId String  @db.ObjectId
+  user   Panitia @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Panitia {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  namaPanitia  String
+  username     String    @unique
+  hashPassword String
+  image        String?
+  role         Role      @default(PANITIA)
+  createAt     DateTime  @default(now())
+  updateAt     DateTime  @updatedAt
+  accounts     Account[]
+  pos          Pos[]
+  Session      Session[]
+}
+
+model Kategori {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  namaKategori String
+  createAt     DateTime @default(now())
+  updateAt     DateTime @updatedAt
+
+  // panitiaId String[]  @db.ObjectId
+  // panitia   Panitia[] @relation(fields: [panitiaId], references: [id])
+
+  peserta Peserta[]
+  pos     Pos[]
+}
+
+model Pos {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  namaPos   String
+  posFinish Boolean?
+  createAt  DateTime @default(now())
+  updateAt  DateTime @updatedAt
+
+  kategoriId String   @db.ObjectId
+  kategori   Kategori @relation(fields: [kategoriId], references: [id], onDelete: Cascade)
+
+  panitiaId String?  @db.ObjectId
+  panitia   Panitia? @relation(fields: [panitiaId], references: [id], onUpdate: NoAction, onDelete: SetNull)
+
+  // peserta Peserta[]
+  pesertaId String[]  @db.ObjectId
+  peserta   Peserta[] @relation(fields: [pesertaId], references: [id])
+}
+
+model Peserta {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  noPeserta String?
+  waktu     Int      @default(0)
+  createAt  DateTime @default(now())
+  updateAt  DateTime @updatedAt
+
+  kategoriId String?   @db.ObjectId
+  kategori   Kategori? @relation(fields: [kategoriId], references: [id], onDelete: Cascade)
+
+  posId String[] @db.ObjectId
+  pos   Pos[]    @relation(fields: [posId], references: [id])
+}
+
+enum Role {
+  PANITIA
+  ADMIN
+}
