@@ -5,36 +5,79 @@ import prisma from "@/app/libs/db"
 export async function POST(req: Request){
     try {
         const body = await req.json()
-        const { data, model, pos} = body
+        const { data, model, isEdit} = body
 
         let respon: any[]= []
 
         switch (model) {
             case "kategori":
-                respon = await prisma.kategori.findMany({
-                    select:{
-                        id: true,
-                        namaKategori: true
-                    },
-
-                    where:{
-                        namaKategori: data
-                    },
-                })
+                if(!isEdit) {
+                    respon = await prisma.kategori.findMany({
+                        select:{
+                            id: true,
+                            namaKategori: true
+                        },
+    
+                        where:{
+                            namaKategori: data
+                        },
+                    })
+                    
+                } else {
+                    respon = await prisma.kategori.findMany({
+                        select:{
+                            id: true,
+                            namaKategori: true
+                        },
+    
+                        where:{
+                            AND: [
+                                {
+                                    namaKategori: data
+                                }, {
+                                    id:{
+                                        not: isEdit
+                                    }
+                                }
+                        ]},
+                    })
+                }
                     
                 break
             
             case "panitia":
-                respon = await prisma.panitia.findMany({
-                    select:{
-                        id: true,
-                        username: true
-                    },
+                if(!isEdit){
+                    respon = await prisma.panitia.findMany({
+                        select:{
+                            id: true,
+                            username: true
+                        },
 
-                    where:{
-                        username: data
-                    },
-                })
+                        where:{
+                            username: data
+                        },
+                    })
+                } else {
+                     respon = await prisma.panitia.findMany({
+                        select:{
+                            id: true,
+                            username: true
+                        },
+
+                        where:{
+                            AND:[
+                                {
+                                    username: data
+                                }, {
+                                    id: {
+                                        not: isEdit
+                                    }
+                                }
+                            ]
+                        }
+                    })
+                }
+                
                     
             break
 
@@ -51,7 +94,7 @@ export async function POST(req: Request){
                                 noPeserta: data
                             }, {
                                 posId:{
-                                    hasSome: pos
+                                    hasSome: [isEdit]
                                 }
                             }
                         ]
@@ -79,6 +122,7 @@ export async function POST(req: Request){
         }))
 
     } catch (error) {
-        return []
+        console.log(error)
+        return NextResponse.json(null)
     }
 }

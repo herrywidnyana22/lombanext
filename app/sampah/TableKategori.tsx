@@ -14,7 +14,7 @@ import { Loading } from '@/app/components/Loading'
 import { ShowModal } from '@/app/components/modal/Modal'
 import { AlertMessage } from '@/app/types/alertMessage'
 import { ValidateMessage } from '@/app/types/validateMesssage'
-import { PosData, InputPosComponent } from '@/app/interfaces/interfaces'
+import { PosData, InputPosComponent } from '@/app/interfaces/DataProps'
 import Validate from '@/app/libs/validate'
 import { ValidateCss } from '@/app/css/validate'
 

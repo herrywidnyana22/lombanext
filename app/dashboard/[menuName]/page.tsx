@@ -12,7 +12,9 @@ import { toast } from 'react-hot-toast'
 import getCurrentUser from '@/app/actions/getCurrentUser'
 import { Role } from '@prisma/client'
 import { getPos, getPosName } from '@/app/actions/getPos'
-
+import useSWR from 'swr'
+// import { unstable_serialize } from 'swr'
+import axios from 'axios'
 
 interface menuParams{
   menuName: any
@@ -31,8 +33,14 @@ const Data = async({params}: {params: menuParams}) => {
   const role = currentUser?.role
   const allPos = await getPos(params.menuName)
   const posName:any = await getPosName(params.menuName)
-  const data = await getDataMenu(params.menuName)
+  // const data: any = async () => {
+  //   // const dataMenu = await getDataMenu(params.menuName)
+  //   const dataMenu = await axios.get(`/api/peserta/${params.menuName}`)
+  //   return dataMenu.data
+  // }
 
+  // const { data } = useSWR(params.menuName, fetcher)
+  const data = await getDataMenu(params.menuName)
   return (
   <>
     <div 
@@ -63,7 +71,7 @@ const Data = async({params}: {params: menuParams}) => {
           &&
             (
               (typeof TableComponent[params.menuName] !== "undefined") && data && data.length > 0 
-              ? React.createElement(TableComponent[params.menuName], {data})
+              ? React.createElement(TableComponent[params.menuName], {data, currentUser})
               : null
             )
         }
@@ -71,7 +79,7 @@ const Data = async({params}: {params: menuParams}) => {
           role === Role.PANITIA 
           && 
           (
-            <TablePeserta data={data} pos={allPos} posId={posName}/>
+            <TablePeserta menu={params.menuName} pos={allPos} posId={posName}/>
           )
         }
       </div>

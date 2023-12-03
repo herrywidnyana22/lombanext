@@ -1,180 +1,152 @@
 'use client'
 
-import Input from "../Input1"
+import {Input1} from "../Input/Input1"
 import Button from "../Button"
 import axios from "axios"
 import clsx from "clsx"
+import Tooltip from "../Tooltip"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BsSaveFill } from "react-icons/bs"
-import { useForm, SubmitHandler, FieldValues, useFieldArray } from "react-hook-form"
 import { toast } from "react-hot-toast"
-import Tooltip from "../Tooltip"
 import { Loading } from "../Loading"
+import { InputPosComponent } from "@/app/interfaces/InputProps"
+import { ValidateMessage } from "@/app/types/validateMesssage"
+import { isDuplicate } from "@/app/libs/validate"
+import { ValidateCss } from "@/app/css/validate"
 
 const FormAddKategori = () => {
 
-    const [jumlahPos, setJumlahPos] = useState(0)
+    const [jumlahPos, setJumlahPos] = useState<number>(0)
     const [fieldError, setFieldError] = useState<any | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [isError, setIsError] = useState(false)
-    const [errorMessage, setErrorMessage] = useState("")
+    const [validateMsg, setValidateMsg] = useState([])
+    const [kategoriMsg, setKategoriMsg] = useState("")
     const [duplicateIndexes, setDuplicateIndexes] = useState<any[]>([]);
-
-    const { 
-        register, 
-        handleSubmit,
-        control,
-        reset,
-        watch,
-        getValues,
-        formState: { errors }
-    } = useForm<FieldValues>()
-
-    const { fields, append  } = useFieldArray({
-        control,
-        name: 'namaPos',
-    });
-
-    let array: any[] = []
-    const watchNamaPos = watch("namaPos")
-
-       
-    const handleJumlahPosChange = (e: any) =>{
-        const { value } = e.target;
-        const pos =  Number(value)
-        setJumlahPos(pos)
-
-        //reset dulu input namaPos
-        reset({ namaPos: [] })
-
-        // baru loop berdasarkan jumlah pos
-        Array.from({length: pos}, ()=> append({ name: ''}))
-
-        // reset validasi
-        setErrorMessage("")
-        setIsError(false)
-        setDuplicateIndexes([])
-    }
-    
-    const onSubmit: SubmitHandler<FieldValues> = (data) =>{
-        setIsLoading(true)
-
-        axios.post("/api/kategori",data)
-        .then((respon) => {
-            console.log(respon) 
-            toast.success("Kategori berhasil ditambahkan")
-        })
-        .catch(() => toast.error("Gagal menambahkan data..!"))
-        .finally(() => {
-            setJumlahPos(0)
-            setIsLoading(false)
-            reset()
-        })
-    }
-
-    
-    const handleChange = useCallback((value: string, path: string) => {
-        // setDuplicateIndexes([]);
-        // console.log("watchNamaPos : ",watchNamaPos)
-        // const fieldName = path.substring(path.indexOf("[") + 1, path.indexOf("]"));
-
-        // const allPos = watch("namaPos").map((pos: any) => pos.name);
-
-        // const duplicate = allPos.filter(
-        //     (posItem: any, index: number) => posItem === value && Number(fieldName) !== index
-        // );
-
-        // const duplicatesExist = duplicate.length > 0;
-
-        // setDuplicateIndexes((prevIndexes) => {
-        //     let updatedIndexes = [...prevIndexes];
-
-        //     if (duplicatesExist) {
-        //         updatedIndexes.push(Number(fieldName));
-        //         setErrorMessage("Nilai tidak boleh sama");
-        //     } else {
-        //         const indexToRemove = updatedIndexes.indexOf(Number(fieldName));
-        //         if (indexToRemove > -1) {
-        //             updatedIndexes.splice(indexToRemove, 1);
-        //         }
-        //         setErrorMessage("");
-        //     }
-
-        //     return updatedIndexes;
-        // });
-        
-
-        // // setDuplicateIndexes(duplicateIndexesCopy);
-
-        // console.log("=====================================")
-        // console.log("fieldname : ",path)
-        // console.log("index onchange : ",fieldName)
-        // console.log("apakah ganda? : ",duplicatesExist)
-        // console.log("duplicate : ",duplicate)
-        // // console.log("index yg sama : ",duplicateIndexesCopy)
-        // console.log("duplicateIndexes : ",duplicateIndexes)
-        // console.log("all pos : ",allPos)
-        console.log("=====================================")
-
+    const [inputPos, setInputPos] = useState<InputPosComponent[]>([])
    
+    
+    // const onSubmit: SubmitHandler<FieldValues> = (data) =>{
+    //     setIsLoading(true)
 
-        
-        
-        const watchNamaPos = watch("namaPos")
-        // for(let i=0; i<jumlahPos; i++){
-        //     array[i]= getValues(`namaPos[${i}].name`)
-        // }
+    //     axios
+    //     .post("/api/kategori",data)
+    //     .then((respon) => {
+    //         console.log(respon) 
+    //         toast.success("Kategori berhasil ditambahkan")
+    //     })
+    //     .catch(() => toast.error("Gagal menambahkan data..!"))
+    //     .finally(() => {
+    //         setJumlahPos(0)
+    //         setIsLoading(false)
+    //         reset()
+    //     })
+    // }
 
-        // cek form duplicate value
-        for (let i = 0; i < jumlahPos; i++) {
-            for (let j = i + 1; j < jumlahPos; j++) {
-                if (i === j || watchNamaPos[i].name === "" || watchNamaPos[j].name === "") continue;
-                if (watchNamaPos[i].name === watchNamaPos[j].name) 
-                {
-                    console.log("GANDA !!!")
-                    setDuplicateIndexes(prevData => [...prevData, `namaPos[${j}].name`])
-                    setDuplicateIndexes(prevData => [...prevData, `namaPos[${i}].name`])
+    // add input pos baru
+    const handleJumlahPos = (e: any) => {
+        const value = e.target.value
+        setJumlahPos(parseInt(value))
+        setInputPos([])
+        for(let i=0; i<value; i++){
+            const newInputComponent: InputPosComponent = {
+                id: `namaPos-${i+1}`,
+                name: `namaPos-${i+1}`,
+                posFinish: false,
+                value: "",
+                panitia: null,
+                error: [],
+            };
+
+            setInputPos((prevInputComponents) => [...prevInputComponents, newInputComponent])
+        }
+        
+    }
+
+
+    const onValidate = async (e: any) => {
+        const { value, name } = e.target
+
+        if(name === "namaKategori"){
+            setKategoriMsg("")
+            if(value === "" || value === null){
+               return setKategoriMsg(ValidateMessage.required)
+            }
+
+            const cek = await isDuplicate(value, "kategori")
+            setKategoriMsg(cek as string)
+
+        } else {
+            const updatedPos = inputPos.map((field: any) =>{
+                field.error = []
+                if(name === field.namaPos){
+                    field.error = []
+
+                    if (value === null || value.trim() === "") {
+                        field.error.push(ValidateMessage.required)
+                        
+                    }
+                    field.value = value
+                }
+
+                return field 
+            })
+
+            const posValues = updatedPos.map((field: any) => field.value)
+    
+            const duplicateValues = posValues.filter((value: any, i: number) => 
+                value && posValues.indexOf(value) !== i
+            )
+
+            updatedPos.forEach((field: any) => {
+                if(value !== ""){
+                    field.error = []
                 }
                 
-                console.log("j :",watchNamaPos[j].name)
-                console.log("i :",watchNamaPos[i].name)
-            }
-        }
-        console.log("=========================")
-        console.log("all pos : ",watchNamaPos)
-        console.log("duplicateIndexes : ",duplicateIndexes)
-        console.log("jumlahPos : ",jumlahPos)
+                if (duplicateValues.includes(field.value)) {
+                    field.error.push(ValidateMessage.sameField)
+                }
+            })
 
-    // }
-    },[duplicateIndexes, watch, jumlahPos])   
+
+            const hasError = updatedPos.some((pos: any) => pos.error.length > 0);
+            setIsError(hasError);
+
+            console.log(updatedPos)
+            
+            setInputPos(updatedPos)
+        }
+
+
+    }
+
+     
 
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
-            {isError ? "true" : "false"}
+        <form onSubmit={() => {} } noValidate>
             <div className="
                 grid 
                 grid-cols-2
                 gap-4
                 text-left
             ">
-                <Input
-                    id="namaKategori"
-                    register={register}
+                <Input1
+                    name="namaKategori"
                     type="text"
                     label="Nama Kategori"
                     disabled={isLoading}
-                    error={errors}
+                    validateMsg={kategoriMsg}
+                    isError={kategoriMsg ? true : false}
+                    onChange={(e) => onValidate(e)}
                 />
-                <Input
-                    id="jumlahPos"
+                <Input1
                     type="number"
-                    register={register}
                     label="Jumlah Pos"
-                    onChange ={handleJumlahPosChange}
+                    onChange ={handleJumlahPos}
                     disabled={isLoading}
-                    error={errors}
+                    
                 />
                 
             </div>
@@ -184,43 +156,41 @@ const FormAddKategori = () => {
                 <h2 className="font-bold mb-2">Pos</h2>
                 <div className="grid grid-cols-2 gap-4">
                 {   
-                    fields.map((field: any, i) => (
-
-                    <div 
-                        key={field.id}
-                        className="
-                            relative
-                            flex 
-                            gap-2
-                        "
-                    > 
-                        <Tooltip text="Atur sebagai pos finish">
-                            <input 
-                                {...register(`namaPos.[${i}].finish`)} 
-                                type="radio"
-                                defaultChecked={jumlahPos === i+1 }
+                    inputPos.map((field, i:number) => (
+                    
+                        <div 
+                            key={i}
+                            className="
+                                relative
+                                flex 
+                                gap-2
+                            "
+                        >   
+                            
+                            <Tooltip text="Atur sebagai pos finish">
+                                <input 
+                                    type="radio"
+                                    defaultChecked={jumlahPos === i + 1}
+                                    disabled={isLoading}
+                                    value={1}
+                                    name="namapos"
+                                />
+                            </Tooltip>
+                            <Input1
+                                name={field.id}
+                                type="text"
+                                placeholder={`Nama Pos ke ${i+1}`}
                                 disabled={isLoading}
-                                value={1}
-                                name="namapos"
+                                required
+                                validateMsg={field.error}
+                                isError ={field.error && field.error.length > 0}
+                                onChange={(e) => onValidate(e)}
+                                value={field.value}
+                            
                             />
-                        </Tooltip>
-                        <Input
-                            id={`namaPos[${i}].name`}
-                            type="text"
-                            placeholder={`Nama Pos ke ${i+1}`}
-                            disabled={isLoading}
-                            register = {register}
-                            validateMessage={errorMessage}
-                            // isError={isError}
-                            isError={isError || duplicateIndexes.includes(i)}
-                            error={errors}
-                            onChange={(e) => {
-                                setDuplicateIndexes([]),
-                                handleChange(e.target.value, `namaPos[${i}].name`)
-                            }}
-                        />
-                        
-                    </div>
+                            
+                        </div>
+            
                 ))}
                 </div>
             </div>
@@ -230,7 +200,7 @@ const FormAddKategori = () => {
                 <Button 
                     text="Submit"
                     type="submit"
-                    disabled = {isLoading || isError}
+                    disabled = {isLoading || isError || (kategoriMsg ? true : false)}
                     icon={isLoading ? Loading : BsSaveFill }
 
                 />

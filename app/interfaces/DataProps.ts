@@ -5,15 +5,7 @@ export interface PosData {
   error?: string
 }
 
-export interface InputPosComponent {
-    id: string
-    namaPos: string
-    posFinish?: boolean
-    panitia: null
-    error: any
-}
-
-interface KategoriData {
+export interface KategoriData {
   id: string
   namaKategori: string
   createAt: string

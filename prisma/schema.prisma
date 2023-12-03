@@ -84,7 +84,7 @@ model Pos {
 model Peserta {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   noPeserta String?
-  waktu     Int      @default(0)
+  waktu     String?
   createAt  DateTime @default(now())
   updateAt  DateTime @updatedAt
 

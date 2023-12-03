@@ -2,7 +2,8 @@
 
 import { BsSaveFill } from "react-icons/bs"
 import { useEffect, useState } from "react"
-import { InputTable, Input, OptionInput } from "../Input"
+import { InputTable, OptionInput } from "../Input/Input"
+import { Input } from "../Input/Input3"
 import Button from "../Button"
 import axios from "axios"
 import { toast } from "react-hot-toast"
@@ -11,8 +12,9 @@ import { AlertMessage } from "@/app/types/alertMessage"
 import { Loading } from "../Loading"
 import { formatForm } from "@/app/libs/Formater"
 import { dataFormat } from "@/app/libs/Formater"
-import { Validasi, Validate } from "@/app/libs/validate"
+import { confirmPassValidate, requiredValidate, existValidate, usernameFormatValidate, passValidate } from "@/app/libs/validate"
 import { Role } from "@prisma/client"
+import clsx from "clsx"
 
 
 const FormAddPanitia = () => {
@@ -23,6 +25,7 @@ const FormAddPanitia = () => {
     const [selectedPos, setSelectedPos] = useState<any[]>([])
     const [panitiaData, setPanitiaData] = useState<any[]>([])
     const [validateMsg, setValidateMsg] = useState()
+    const [pass, setPass] = useState("")
 
     const onSelectedPos = (kategoriId: string, posId: string) =>{
         // kosongkan dulu sesuai kategori
@@ -49,7 +52,8 @@ const FormAddPanitia = () => {
         const formData = new FormData(e.target)
         const data = formatForm(formData)
         
-        await axios.post("/api/panitia", data)
+        await axios
+        .post("/api/panitia", data)
         .then((respon) => {
             toast.success(respon.data.msg)
         })
@@ -79,9 +83,6 @@ const FormAddPanitia = () => {
     
     return (
         <form onSubmit={onSubmit} className="text-slate-600">
-            {/* {JSON.stringify(validateMsg)} */}
-            {/* {validateMsg && JSON.stringify(validateMsg)} */}
-            {/* {isAdminChecked ? "true" : "false"} */}
             <div className="
                 grid 
                 grid-cols-2 
@@ -96,7 +97,8 @@ const FormAddPanitia = () => {
                     required
                     disabled={isLoading}
                     validateMsg={validateMsg}
-                    onChange={(e) => Validasi(e, "panitia", setValidateMsg, validateMsg)}
+                    onChange={(e) => requiredValidate({e, setValidateMsg, validateMsg, setIsError})}
+                    isError={isError}
                 />
                 <Input
                     id="username"                   
@@ -106,7 +108,12 @@ const FormAddPanitia = () => {
                     required
                     disabled={isLoading}
                     validateMsg={validateMsg}
-                    onChange={(e) => Validasi(e, "panitia", setValidateMsg, validateMsg)}
+                    onChange={(e) => {
+                        existValidate({e, model: "panitia", setValidateMsg, validateMsg, setIsError})
+                        requiredValidate({e, setValidateMsg, validateMsg, setIsError})
+                        usernameFormatValidate({e, setValidateMsg, validateMsg, setIsError})
+                    }}
+                    isError={isError}
                 />
                 <Input
                     id="password"
@@ -116,7 +123,12 @@ const FormAddPanitia = () => {
                     required
                     disabled={isLoading}
                     validateMsg={validateMsg}
-                    onChange={(e) => Validasi(e, "panitia", setValidateMsg, validateMsg)}
+                    onChange={(e) => {
+                        setPass(e.target.value)
+                        requiredValidate({e, setValidateMsg, validateMsg, setIsError})
+                        passValidate({e, setValidateMsg, validateMsg, setIsError})
+                    }}
+                    isError={isError}
                 />
                 <Input
                     id="confPassword" 
@@ -126,7 +138,11 @@ const FormAddPanitia = () => {
                     required
                     disabled={isLoading}
                     validateMsg={validateMsg}
-                    onChange={(e) => Validasi(e, "panitia", setValidateMsg, validateMsg)}
+                    onChange={(e) => {
+                        requiredValidate({e, setValidateMsg, validateMsg, setIsError})
+                        confirmPassValidate(e, pass, setValidateMsg, validateMsg, setIsError)
+                    }}
+                    isError={isError}
                 />
                 <div className="mt-5">
                     <label className="
@@ -187,15 +203,19 @@ const FormAddPanitia = () => {
             <>
                 <hr/>
                 <h2 className="mt-5 text-left">Tugas Jaga</h2>
-                <div className="
+                <div className={clsx(`
                     flex
                     justify-between
                     border 
-                    border-gray-300 
+                    
                     mt-2
                     rounded-md
-                    p-4
-                ">
+                    p-4`,
+                    selectedPos.length > 0 
+                    ? "border-gray-300 "
+                    : "border-rose-500 "
+                    
+                )}>
                     <div className="
                         w-full
                         grid
@@ -258,7 +278,11 @@ const FormAddPanitia = () => {
                     type="submit"
                     text="Submit"
                     className="mt-6 px-10"
-                    disabled ={isLoading || (validateMsg && Object.keys(validateMsg).length > 0)}
+                    disabled ={
+                        isLoading 
+                        || (validateMsg && Object.keys(validateMsg).length > 0)
+                        || selectedPos.length === 0
+                    }
                     icon={isLoading ? Loading : BsSaveFill }
                 />
             </div>

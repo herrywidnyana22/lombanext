@@ -13,12 +13,13 @@ import { ValidateCss } from '@/app/css/validate'
 import { ShowModal } from '@/app/components/modal/Modal'
 import FormAddPanitia from '@/app/components/form/FormAddPanitia'
 import Button from '@/app/components/Button'
-import { InputTable, InputText, OptionInput } from '@/app/components/Input'
-import { ValidateMessage } from '@/app/types/validateMesssage'
-import { Validate } from '@/app/libs/validate'
+import { OptionInput } from '@/app/components/Input/Input'
+import { existValidate, requiredValidate } from '@/app/libs/validate'
 import { dataFormat } from '@/app/libs/Formater'
+import { Role } from '@prisma/client'
+import { Input } from '@/app/components/Input/Input3'
 
-const TableUser:React.FC<TableProps> = ({data}) => {
+const TableUser:React.FC<TableProps> = ({data, currentUser}) => {
     const [panitiaData, setPanitiaData] = useState(data)
     const [panitaSelected, setPanitiaSelected] = useState<any[]>([])
     const [editMode, setEditMode] = useState<number | null>(null)
@@ -36,8 +37,11 @@ const TableUser:React.FC<TableProps> = ({data}) => {
     // edit pos state
     const [selectedPos, setSelectedPos] = useState<any[]>([])
 
+    // validateState
+    const [validateMsg, setValidateMsg] = useState()
 
     const router = useRouter()
+    const { id, role } = currentUser
 
     const onCancel = () =>{
         dataFormat(data, setPanitiaData)
@@ -46,6 +50,7 @@ const TableUser:React.FC<TableProps> = ({data}) => {
         setIsLoading(false)
         setIsError(false)
         setSelectedPos([])
+        setValidateMsg(undefined)
     }
 
     // edit prosedure
@@ -108,9 +113,11 @@ const TableUser:React.FC<TableProps> = ({data}) => {
     // Delete prosedure
     const oncheckAll = useCallback(() =>{
         setIsCheckAll(!isCheckAll)
-        setCheckAll(isCheckAll ? [] : data.map((item) => item.id))
+        const filteredIds = data.filter((item) => item.id !== id).map((item) => item.id)
+
+        setCheckAll(isCheckAll ? [] : filteredIds)
         
-    },[data, isCheckAll])
+    },[data, isCheckAll, id])
     
    
     const onSingleCheck = (e: any, itemId: string) => {
@@ -146,7 +153,8 @@ const TableUser:React.FC<TableProps> = ({data}) => {
         setSelectedDelete(i)
         const panitiaId = id
 
-        await axios.delete(`/api/panitia/${panitiaId}`)
+        await axios
+        .delete(`/api/panitia/${panitiaId}`)
         .then (() => {
             toast.success(AlertMessage.removeSuccess) 
             router.refresh()
@@ -192,7 +200,8 @@ const TableUser:React.FC<TableProps> = ({data}) => {
         if(editMode === panitiaIndex){
             setIsLoading(true)
             const data = panitiaData.filter((selected) => selected.id === panitiaId)
-            await axios.patch(`/api/panitia/${panitiaId}`, data)
+            await axios
+            .patch(`/api/panitia/${panitiaId}`, data)
             .then (() => {
                 toast.success(AlertMessage.editSuccess) 
                 router.refresh()
@@ -212,13 +221,26 @@ const TableUser:React.FC<TableProps> = ({data}) => {
         }
     }
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, dataId: string) =>{
+        const {value, name} = e.target
+        const updatedData = panitiaData.map((item) => {
+            if (item.id === dataId) {
+                return { ...item, [name]: value }
+            }
+            return item
+        })
+        setPanitiaData(updatedData)
+    }
+
     useEffect(() => {
-        dataFormat(data, setPanitiaData)
-    }, [data])
-    
-    console.log(panitiaData)
+        setIsError(validateMsg && Object.keys(validateMsg).length > 0 ? true : false)
+    }, [validateMsg])
+
     return (
     <>
+        {/* {panitiaData && JSON.stringify(panitiaData)} */}
+        {isError ? " true" : "false"}
+        {validateMsg && JSON.stringify(validateMsg)}
         {
             data.length > 0 && 
             <>
@@ -243,10 +265,11 @@ const TableUser:React.FC<TableProps> = ({data}) => {
                                 <input 
                                     type="checkbox" 
                                     className="w-4 h-4 checked:bg-blue-400"
-                                    checked={data.length === checkAll.length} 
+                                    checked={data.length === checkAll.length + 1} 
                                     onChange={oncheckAll}
                                 />
                             </th>
+                            <th className="py-1 w-10">#</th>
                             <th className="py-4 text-center w-[25%]">Nama</th>
                             <th className="py-4 text-center w-[15%]">Username</th>
                             <th className="py-4 text-center w-[30%]">Kategori</th>
@@ -267,129 +290,147 @@ const TableUser:React.FC<TableProps> = ({data}) => {
                                 )}
                             >
                                 <td className="py-1 text-center w-10">
+                                    
                                     <input 
                                         type="checkbox" 
                                         className="w-4 h-4 checked:bg-blue-400"
                                         checked={checkAll.includes(panitia.id)}
                                         onChange={(e) => onSingleCheck(e, panitia.id)} 
+                                        disabled= {panitia.id === id}
                                     />
                                 </td>
+                                <td className="text-center border-r border-zinc-100">{panitiaIndex+1}</td>
                                 <td className='p-3'>
-                                    <InputTable 
-                                        type='text'
+                                    <Input
+                                        id={`namaPanitia-${panitiaIndex+1}`} 
                                         name='namaPanitia'
+                                        type='text'
                                         value={panitia.namaPanitia}
                                         disabled={isLoading}
                                         readOnly={editMode !== panitiaIndex}
                                         className={clsx(
                                             editMode === panitiaIndex && `
-                                            border 
-                                            rounded-md 
-                                            py-1 px-4
-                                            focus:border-orange-300`,
-                                            isError && panitia.error['namaPanitia'] !== ""
-                                            ? ValidateCss.borderError
-                                            : "border-zinc-200" 
+                                            py-1 px-4 
+                                            focus:ring-orange-300`,
                                         )}
-                                        onChange={(e) => Validate({ event: e, id: panitia.id, errorState: setIsError, dataState: setPanitiaData, data: panitiaData })}
-                                        validateMsg={panitia.error}
-                                        
+                                        onChange={(e) => {
+                                            requiredValidate({e, setValidateMsg, validateMsg, setIsError})
+                                            handleInputChange(e, panitia.id)
+                                        }}
+
+                                        validateMsg={validateMsg}
+                                        isError ={validateMsg && Object.keys(validateMsg).length}
+                                    
                                     />
                                 </td>
                                 <td className='p-3'>
-                                    <InputTable 
+                                    <Input
+                                        id={`username-${panitiaIndex+1}`}
                                         type='text'
                                         name='username'
                                         value={panitia.username}
                                         disabled={isLoading}
-                                        readOnly={editMode !== panitiaIndex}
+                                        readOnly={editMode !== panitiaIndex || panitia.id === id}
                                         className={clsx(
-                                            editMode === panitiaIndex && `
-                                            border 
-                                            rounded-md 
-                                            py-1 px-4
-                                            focus:border-orange-300`,
-                                            isError && panitia.error['username'] !== ""
-                                            ? ValidateCss.borderError
-                                            : "border-zinc-200"
+                                            editMode === panitiaIndex && panitia.id !== id && `
+                                            py-1 px-4 
+                                            focus:ring-orange-300`,
                                         )}
-                                        onChange={(e) => Validate({ event: e, id: panitia.id, errorState: setIsError, dataState: setPanitiaData, data: panitiaData })}
-                                        validateMsg={panitia.error}
-                                        // isError ={isError && editMode === panitiaIndex}
+                                        onChange={(e) => {
+                                            existValidate({e, model: "panitia", setValidateMsg, validateMsg, setIsError, isEdit: panitia.id})
+                                            requiredValidate({e, setValidateMsg, validateMsg, setIsError})
+                                            handleInputChange(e, panitia.id)
+                                        }}
+
+                                        validateMsg={validateMsg}
+                                        isError ={validateMsg && Object.keys(validateMsg).length}
+                                        // onChange={(e) => Validate({ event: e, id: panitia.id, errorState: setIsError, dataState: setPanitiaData, data: panitiaData })}
                                     />
                                 </td>
                                 <td className='p-3'>
-                                {  
-                                    editMode !== panitiaIndex && (
-                                        panitia.pos.some((pos: any) => pos.panitia !== null)
-                                        ? (
-                                            panitia.pos
-                                            .filter((pos: any) => pos.kategori !== null)
-                                            .map((pos: any) => pos.kategori.namaKategori)
-                                            .join(", ")
-                                          )  
-                                        : "Belum ada pos"
+                                {
+                                    panitia.role === Role.ADMIN && editMode !== panitiaIndex
+                                    ? "Semua Akses"
+                                    : (
+                                        editMode !== panitiaIndex && (
+                                            panitia.pos.some((pos: any) => pos.panitia !== null)
+                                            ? (
+                                                panitia.pos
+                                                .filter((pos: any) => pos.kategori !== null)
+                                                .map((pos: any) => pos.kategori.namaKategori)
+                                                .join(", ")
+                                              )  
+                                            : "Belum ada pos"
+                                        )
                                     )
+                                
                                 }
                                 
                                 {   
-                                
-                                    editMode === panitiaIndex &&
-                                    (
-                                    <div className='grid grid-cols-2 gap-2 place-items-start'>
-                                    {
-                                        panitaSelected.map((kategori, i) =>(
-                                        <div key={i} className="flex flex-col">
-                                            <OptionInput
-                                                checked={
-                                                    selectedPos.some((obj) => 
-                                                        Object.keys(obj).includes(kategori.id)
-                                                    )
-                                                } 
-                                                id="namaKategori"
-                                                type="checkbox"
-                                                label={kategori.namaKategori}
-                                                disabled={isLoading}
-                                                onChange={() => {
-                                                    onRemovePos(kategori.id)
-                                                    removePosData(kategori.id)
-                                                }}
-                                            />
-                                            <div className="ml-6">
-                                            {
-                                                kategori.pos.map((pos: any, index: number) =>(
+                                    panitia.id === id && editMode === panitiaIndex
+                                    ? "Tidak dapat diubah"
+                                    : (
+                                        editMode === panitiaIndex &&
+                                        (
+                                        <div className='grid grid-cols-2 gap-2 place-items-start'>
+                                        {
+                                            panitaSelected.map((kategori, i) =>(
+                                            <div key={i} className="flex flex-col">
                                                 <OptionInput
-                                                    key={index}
-                                                    id="namaPos" 
-                                                    value={pos.id}
                                                     checked={
-                                                        selectedPos.some(obj => 
-                                                            Object.values(obj).includes(pos.id))
+                                                        selectedPos.some((obj) => 
+                                                            Object.keys(obj).includes(kategori.id)
+                                                        )
                                                     } 
-                                                    name={kategori.id}
-                                                    type="radio"
-                                                    label={pos.namaPos}
-                                                    disabled={isLoading || (pos.panitia !== null && pos.panitia.id !== panitia.id)}
-                                                    onChange={() => onSelectedPos(kategori.id, pos.id, pos.namaPos, kategori.namaKategori)}
+                                                    id="namaKategori"
+                                                    type="checkbox"
+                                                    label={kategori.namaKategori}
+                                                    disabled={isLoading}
+                                                    onChange={() => {
+                                                        onRemovePos(kategori.id)
+                                                        removePosData(kategori.id)
+                                                    }}
                                                 />
-                                            ))}
+                                                <div className="ml-6">
+                                                {
+                                                    kategori.pos.map((pos: any, index: number) =>(
+                                                    <OptionInput
+                                                        key={index}
+                                                        id="namaPos" 
+                                                        value={pos.id}
+                                                        checked={
+                                                            selectedPos.some(obj => 
+                                                                Object.values(obj).includes(pos.id))
+                                                        } 
+                                                        name={kategori.id}
+                                                        type="radio"
+                                                        label={pos.namaPos}
+                                                        disabled={isLoading || (pos.panitia !== null && pos.panitia.id !== panitia.id)}
+                                                        onChange={() => onSelectedPos(kategori.id, pos.id, pos.namaPos, kategori.namaKategori)}
+                                                    />
+                                                ))}
+                                                </div>
                                             </div>
+                                            ))
+                                        }
                                         </div>
-                                        ))
-                                    }
-                                    </div>
+                                        )
                                     )
                                 }
                                 </td>
                                 
                                 <td className='p-3'>
                                 {   
-                                    panitia.pos.length > 0 
-                                    ? (
-                                        panitia.pos.map((pos: any) => pos.namaPos).join(", ")
+                                    panitia.role === Role.ADMIN 
+                                    ? "Semua Akses"
+                                    :  (
+                                        panitia.pos.length > 0 
+                                        ? (
+                                            panitia.pos.map((pos: any) => pos.namaPos).join(", ")
+                                        )
+                                        : "Belum ada pos"
+
                                     )
-                                    : "Belum ada pos"
-                                    
                                 }
                                 </td>
                                 <td className="text-center p-3">
@@ -445,20 +486,22 @@ const TableUser:React.FC<TableProps> = ({data}) => {
                                                 </span>
                                             }
                                         </div>
-                                        <span 
-                                            className="p-2 
-                                                rounded-md 
-                                                hover:bg-rose-500 
-                                                hover:text-white 
-                                                cursor-pointer
-                                                transition
-                                            "
-                                            onClick={() => onDelete(panitia.id, panitiaIndex)}
-                                        >
-                                            {(isLoading && selectedDelete === panitiaIndex) 
-                                            ? <Loading/> 
-                                            : <BsTrash/>}
-                                        </span>
+                                        {panitia.id !== id && (
+                                            <span 
+                                                className="p-2 
+                                                    rounded-md 
+                                                    hover:bg-rose-500 
+                                                    hover:text-white 
+                                                    cursor-pointer
+                                                    transition
+                                                "
+                                                onClick={() => onDelete(panitia.id, panitiaIndex)}
+                                            >
+                                                {(isLoading && selectedDelete === panitiaIndex) 
+                                                ? <Loading/> 
+                                                : <BsTrash/>}
+                                            </span>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

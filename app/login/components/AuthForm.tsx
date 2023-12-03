@@ -1,7 +1,7 @@
 'use client'
 
 import Button from "@/app/components/Button"
-import { Input } from "@/app/components/Input"
+import { Input } from "@/app/components/Input/Input3"
 import { Loading } from "@/app/components/Loading"
 import { useEffect, useState } from "react"
 import { BsArrowBarRight } from "react-icons/bs"
