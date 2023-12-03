@@ -1,124 +1,301 @@
 'use client'
 
-import { BsSaveFill } from "react-icons/bs"
 import Button from "../Button"
-import { Input } from "../Input"
-import { useState } from "react"
-import { Loading } from "../Loading"
 import axios from "axios"
 import toast from "react-hot-toast"
-import { formatForm } from "@/app/libs/Formater"
+import TimeInput from "../Input/TimeInput"
+import { BsSaveFill } from "react-icons/bs"
+import { Input } from "../Input/Input3"
+import { useEffect, useState } from "react"
+import { Loading } from "../Loading"
 import { AlertMessage } from "@/app/types/alertMessage"
-import { VaidasiPeserta } from "@/app/libs/validate"
-import { ValidateMessage } from "@/app/types/validateMesssage"
+import { existValidate, duplicateValidate, isGroupEmpty } from "@/app/libs/validate"
+import { InputPesertaComponent, TimeFormat } from "@/app/interfaces/InputProps"
+import { InputTimeProps } from "@/app/interfaces/InputProps"
 
 interface formInputProps{
     kategori: string
     posName?: any
 }
 
+const initialTime: InputTimeProps = {
+  hour: '',
+  minute: '',
+  second: '',
+  millisecond: '',
+}
+
+
+
 const FormInputPeserta:React.FC<formInputProps> = ({kategori, posName}) => {
     
+
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    // const [validateMsg, setValidateMsg] = useState<any>({})
-    const [validateMsg, setValidateMsg] = useState<any>({"nopeserta1":["Data sudah ada..!", "tidak boleh sama"]})
-    const [pesertaField, setPesertaField] = useState<{[key: string]: string}[]>([])
+
+    const [validateMsg, setValidateMsg] = useState()
+    const [duplicateMsg, setDuplicatMsg] = useState()
+
+    const [isError, setIsError] = useState(false)
+    const [isEmpty, setIsEmpty] = useState(false)
+    const [inputPeserta, setInputPeserta] = useState<InputPesertaComponent[]>([])
 
     const posId = posName.id
     const jumlahInput = 4
+    
+
+
     const onSubmit = async(e: any) =>{
         setIsLoading(true)
         e.preventDefault()
         const formData = new FormData(e.target)
         const noPeserta = Object.fromEntries(formData)
 
-        await axios.post("/api/peserta", {noPeserta, kategori })
-        .then(() => {
-            toast.success(AlertMessage.addSuccess)
-        })
+        if (isGroupEmpty(noPeserta, setValidateMsg, setIsError)){
+            setIsLoading(false)
+            setIsEmpty(true)
+            return toast.error("Ada kesalahan...!")
+        }
+        
+        await axios
+        // .post("/api/peserta", { noPeserta, kategori })
+        .post("/api/peserta", { inputPeserta: transformData(inputPeserta), kategori, isPosFinish: posName.posFinish})
+        .then(() => toast.success(AlertMessage.addSuccess))
         .catch(() => toast.error(AlertMessage.addFailed))
         .finally(() => {
+            reset()
             setIsLoading(false)
         })
-    
+
+        console.log(transformData(inputPeserta))
+        
     }
 
-    const cekDuplicate = (e: any) =>{
-        const { value, name } = e.target
-        const newField = {[name]: value}
+    const transformData = (data: TimeFormat[]): any[] =>{
+        const result: any[] = [];
 
-        setPesertaField((prevData) => {
-            const updatedField = [...prevData]
-            const index = updatedField.findIndex((field) => field.hasOwnProperty(name))            
-            
-            if(index !== -1) {
-                updatedField[index][name] = value
-            } else {
-                updatedField.push(newField)
+        // Iterate over each object in the inputData array
+        data.forEach((inputObj) => {
+            const id = inputObj.id;
+
+            // Iterate over the properties of the current object
+            for (const propName in inputObj) {
+                if (propName !== 'id' && propName !== 'time') {
+                    const newObj: any = { id };
+                    newObj[propName] = inputObj[propName];
+
+                    // Use type assertions to access properties of the 'time' object
+                    const timeObj = inputObj['time'][0] as { hour: string; minute: string; second: string; millisecond: string };
+                    newObj['time'] = timeObj.hour + ':' + timeObj.minute + ':' + timeObj.second + ':' + timeObj.millisecond;
+
+                    result.push(newObj);
+                }
             }
-            const duplicateValues = updatedField.filter((field, index, arr) => {
-                const values = Object.values(field)
-                return arr.some((item, i) => i !== index && Object.values(item).includes(values[0]));
-            })
-            const isDuplicate = duplicateValues.length > 0
-            const deleteDuplicateMsg = Object.fromEntries(
-                Object.entries(validateMsg).filter(([key, value]) => value !== ValidateMessage.sameField)
-            )
-
-            setValidateMsg((prevMsg: any) => {
-                // Step 1: Remove "exist" value from arrays in validateMsg
-                const updatedMsg: any = Object.entries(prevMsg).reduce((acc: any, [key, value]) => {
-                    if (Array.isArray(value)) {
-                        const filteredValue = value.filter((item: any) => item !== ValidateMessage.sameField);
-                        if (filteredValue.length > 0) {
-                            acc[key] = filteredValue;
-                        }
-                    } else {
-                        acc[key] = value;
-                    }
-                    return acc;
-                }, {})
-
-                // Step 2: Add fields from duplicateValues with ["exist"] value as an array
-                duplicateValues.forEach((field: any) => {
-                    const fieldName = Object.keys(field)[0]
-                    updatedMsg[fieldName] = [ValidateMessage.sameField];
-                });
-
-                return updatedMsg;
-            })
-
-
-            console.log(duplicateValues)
-            console.log(isDuplicate)
-
-            return updatedField
         })
 
+        return result
     }
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) =>{
+        
+        const {value, name, id} = e.target
+        const updateFieldData = inputPeserta.map((field) =>{
+            if(field.id === id) {
+                return {...field, [name]: value}
+            }
+
+            return field
+        })
+        
+        setInputPeserta(updateFieldData)
+    }
+
+    const resetValidateMsg = () =>{
+        if(isEmpty) {
+            setValidateMsg(undefined)
+            setIsEmpty(false)
+        }
+    }
+
+    const reset = () =>{
+        setInputPeserta([])
+        initialPesertaInput()
+    }
+
+    function initialPesertaInput(){
+        for(let i=0; i<jumlahInput; i++){
+            const fieldName = `nopeserta${i+1}`
+            const newInputComponent: InputPesertaComponent = {
+                id: fieldName,
+                [fieldName]: ""
+            }
+            
+            newInputComponent.time = [
+                {
+                    hour: '',
+                    minute: '',
+                    second:'',
+                    millisecond: '',
+                },
+            ]
+             
+            
+            setInputPeserta((prevInputComponents) => [
+                ...prevInputComponents, 
+                newInputComponent
+            ])
+        }
+    }
+    const storeTimeValue = (name: string, value: string, inputId: string) => {
+        setInputPeserta((prevInputPeserta) =>
+            prevInputPeserta.map((item) =>
+                item.id === inputId
+                ? {
+                    ...item,
+                    time: [{ ...item.time[0], [name]: value }],
+                }
+                : item
+            )
+        )
+        console.log(name)
+        console.log(value)
+    }
+
+    const handleTimeChange = (e: any, inputId: string, pattern: any) =>{
+        let { name, value } = e.target
+
+        const regex = new RegExp(pattern)
+        if(value === '' || value === null){
+            storeTimeValue(name, value, inputId)
+        // } else if (/^[0-9]?[0-9]|100$/.test(value)) {
+        } else if (regex.test(value)) {
+            storeTimeValue(name, value, inputId)
+        }
+    }
+
+    const handleBlur = (e: React.ChangeEvent<HTMLInputElement>,inputId: string) =>{
+        let { name, value } = e.target
+        let numberValue = parseInt(value, 10)
+
+        if(value === '' || value === null || value == '0'){
+            value = '00'
+        } else if(numberValue < 10 && numberValue > 0){
+            value = `0${numberValue}`
+        }
+
+        storeTimeValue(name, value, inputId)
+    }
+    
+
+    useEffect(() =>{
+        setInputPeserta([])
+        initialPesertaInput()
+    },[])
+
+    useEffect(() => {
+        setIsError(validateMsg && Object.keys(validateMsg).length > 0 
+        || duplicateMsg && Object.keys(duplicateMsg).length > 0
+        ? true 
+        : false)
+    }, [validateMsg, duplicateMsg])
+
+    
     return (
         <form onSubmit={onSubmit}>
-            {JSON.stringify(pesertaField)}
-            {JSON.stringify(validateMsg)}
+            {JSON.stringify(inputPeserta)}
+            {/* {JSON.stringify(validateMsg)} */}
+            {/* {JSON.stringify(transformData(inputPeserta))} */}
+            {/* {JSON.stringify(time)} */}
             <div className={`grid grid-cols-${jumlahInput} gap-5 mt-6 justify-center` }>
             {
-                Array.from({length: jumlahInput}, (_, i) => (
-                    <Input
-                        key={i}
-                        id={`nopeserta${i+1}`}
-                        name={`nopeserta${i+1}`}
-                        type='number'
-                        label="No Peserta"
-                        disabled= {isLoading}
-                        onChange={(e) => {
-                            VaidasiPeserta(e, "peserta", setValidateMsg, validateMsg, posId)
-                            cekDuplicate(e)
-                        }}
-                        validateMsg={validateMsg}
-                    />
+                inputPeserta.map((pesertaField, i) => (
+                    <div
+                        key={i} 
+                        className="
+                            flex
+                            flex-col
+                            gap-2
+                        "
+                    >
+                        <Input
+                            id={pesertaField.id}
+                            name={pesertaField.id}
+                            label="No Peserta"
+                            type='number'
+                            value={pesertaField[pesertaField.id] }
+                            disabled= {isLoading}
+                            onChange={(e) => {
+                                handleInputChange(e)
+                                existValidate({e, model: "peserta", setValidateMsg, validateMsg, setIsError, isEdit:posId})
+                                duplicateValidate(e, inputPeserta, setDuplicatMsg, duplicateMsg, setIsError)
+                                resetValidateMsg()
+                            }}
+                            validateMsg={validateMsg}
+                            isError = {isError}
+                            secondValidateMsg={duplicateMsg}
+                            isDoubleValidate
+                        />
+                        {
+                            posName.posFinish && (
+                            <div className="
+                                flex
+                                gap-1 
+                                justify-center 
+                                items-center
+                            ">
+                                    <TimeInput
+                                        type="text"
+                                        id={`hour${i}`}
+                                        name="hour"
+                                        value={pesertaField.time[0].hour}
+                                        maxLength={2}
+                                        placeholder="00"
+                                        onBlur={(e) => handleBlur(e, pesertaField.id)}
+                                        onChange={(e) => handleTimeChange(e, pesertaField.id, "^[0-9]?[0-9]|60$")}
+                                        required
+                                    />
+                                    <span>:</span>
+                                    <TimeInput
+                                        type="text"
+                                        id={`minute${i}`}
+                                        name="minute"
+                                        maxLength={2}
+                                        placeholder="00"
+                                        value={pesertaField.time[0].minute}
+                                        onChange={(e) => handleTimeChange(e, pesertaField.id, "^[0-5]?[0-9]|60$")}
+                                        onBlur={(e) => handleBlur(e, pesertaField.id)}
+                                        required
+                                    />
+                                    <span>:</span>
+                                    <TimeInput
+                                        type="text"
+                                        id={`second${i}`}
+                                        name="second"
+                                        maxLength={2}
+                                        placeholder="00"
+                                        value={pesertaField.time[0].second}
+                                        onChange={(e) => handleTimeChange(e, pesertaField.id, "^[0-5]?[0-9]|60$")}
+                                        onBlur={(e) => handleBlur(e, pesertaField.id)}
+                                        required
+                                    />
+                                    <span>:</span>
+                                    <TimeInput
+                                        type="text"
+                                        id={`millisecond${i}`}
+                                        name="millisecond"
+                                        maxLength={3}
+                                        placeholder="000"
+                                        value={pesertaField.time[0].millisecond}
+                                        onChange={(e) => handleTimeChange(e, pesertaField.id, "^[0-9]{1,3}|100$")}
+                                        onBlur={(e) => handleBlur(e, pesertaField.id)}
+                                        required
+                                    />
+
+                            </div>
+                        )}
+                    </div>
 
                 ))
+                
             }
             </div>
             <div className="w-full flex justify-center">
@@ -126,7 +303,7 @@ const FormInputPeserta:React.FC<formInputProps> = ({kategori, posName}) => {
                     type="submit"
                     text="Submit"
                     className="mt-6 px-10"
-                    disabled ={isLoading || (validateMsg && Object.keys(validateMsg).length > 0)}
+                    disabled ={isLoading || isError}
                     icon={
                         isLoading
                         ? Loading

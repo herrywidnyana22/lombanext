@@ -50,7 +50,7 @@ function Modal(props: ModalProps){
                         
                         <div className="
                             relative
-                            p-4
+                            p-6
                             transform
                             shadow-xl
                             rounded-md
@@ -76,7 +76,14 @@ function Modal(props: ModalProps){
                             >
                                 <IoCloseOutline/>
                             </span>
-                            <p className="font-bold text-slate-600 text-left mb-2">
+                            <p className="
+                                text-lg
+                                font-bold 
+                                text-slate-600 
+                                text-left 
+                                mb-2
+                                py-2
+                            ">
                             {
                                 props.title || "Title"
                             }
@@ -88,7 +95,7 @@ function Modal(props: ModalProps){
                                 {
                                     props.content || "Messages Alert"
                                 }
-                                {props.okBtnText && (
+                                {   props.okBtnText && (
 
                                     <div className="space-x-3 mt-5">
                                         

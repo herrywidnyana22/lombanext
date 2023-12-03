@@ -15,7 +15,6 @@ interface MenuProfileProps{
 
 const MenuProfile:React.FC<MenuProfileProps> = ({isClicked, currentUser}) => {
     const rule = currentUser?.role
-    console.log(currentUser)
 
     return (
         <div className="

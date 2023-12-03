@@ -4,33 +4,39 @@ import prisma from "@/app/libs/db"
 import { AlertMessage } from "@/app/types/alertMessage";
 import getCurrentUser from "@/app/actions/getCurrentUser";
 
-interface PesertaData {
-  noPeserta: {
-    [key: string]: string;
-  };
-  kategori: string;
-}
+// interface PesertaData {
+//   noPeserta: {
+//     [key: string]: string;
+//   };
+//   kategori: string;
+// }
 
 export async function POST(req: Request) {
-    const requestData: PesertaData = await req.json();
-    const { noPeserta, kategori } = requestData;
-    const currentUser: any = await getCurrentUser();
+    const requestData = await req.json()
+    // const { noPeserta, kategori, inputPeserta } = requestData
+    const { inputPeserta, kategori, isPosFinish} = requestData
+    const currentUser: any = await getCurrentUser()
     const decodedKategoriName = decodeURIComponent(kategori);
+
     const posItem = currentUser?.pos.find(
         (pos: any) =>
         pos.kategori.namaKategori.toLowerCase() === decodedKategoriName.toLowerCase()
-    );
+    )
+
     const kategoriId = posItem ? posItem.kategori.id : "";
-    const posId = posItem ? posItem.id : "";
-    console.log(noPeserta)
+    const posId = posItem ? posItem.id : ""
+
+    console.log(kategori)
+    console.log(inputPeserta)
+
 
     try {
-        const newPesertas = await Promise.all(Object.keys(noPeserta).map(async(key: string) => {
-            if(noPeserta[key]){
+        const newPesertas = await Promise.all(inputPeserta.map(async(noPeserta: any) => {
+            if(noPeserta[noPeserta.id]){
                 const cekNoPeserta =  await prisma.peserta.findFirst({
                     where: {
                         AND:[{
-                            noPeserta: String (noPeserta[key])
+                            noPeserta: String (noPeserta[noPeserta.id])
                         }, {
                             kategoriId: kategoriId
                         }]
@@ -39,14 +45,23 @@ export async function POST(req: Request) {
     
     
                 if(cekNoPeserta){
-                    return await prisma.peserta.update({
-                        data:{
-                            pos: {
-                                connect: {
-                                    id: posId,
-                                }
+
+                    const updatePeserta: any = {
+                        pos: {
+                            connect: {
+                                id: posId,
                             }
-                        },
+                        }
+                    }
+
+                    if(isPosFinish) {
+                        updatePeserta.waktu = noPeserta.time
+                    } else {
+                        updatePeserta.waktu = "00:00:00:000"
+                    }
+
+                    return await prisma.peserta.update({
+                        data: updatePeserta,
                         where:{
                             id:cekNoPeserta.id
                         }
@@ -56,7 +71,7 @@ export async function POST(req: Request) {
                     
                     return await prisma.peserta.create({
                         data: {
-                            noPeserta: noPeserta[key],
+                            noPeserta: noPeserta[noPeserta.id],
                             kategori: {
                                 connect: {
                                     id: kategoriId,
@@ -66,7 +81,8 @@ export async function POST(req: Request) {
                                 connect: {
                                     id: posId,
                                 }
-                            }
+                            },
+                            waktu: noPeserta.time
                         },
                         include:{
                             pos: true,
@@ -89,22 +105,15 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request){
     const body = await req.json()
+    const { data, posId } = body
     console.log(body)
     try {
         let deletePeserta
-        for (const pesertaId of body.data){
+        for (const pesertaId of data){
 
             const cekNoPeserta =  await prisma.peserta.findFirst({
                 where: {
                     id: pesertaId
-                }
-            })
-
-            const cekPos = await prisma.pos.findFirst({
-                where:{
-                    pesertaId:{
-                        hasSome: pesertaId
-                    }
                 }
             })
 
@@ -121,7 +130,7 @@ export async function PATCH(req: Request){
                     data:{
                         pos:{
                             disconnect:{
-                                id: cekPos?.id
+                                id: posId
                             }
                         }
                     },
