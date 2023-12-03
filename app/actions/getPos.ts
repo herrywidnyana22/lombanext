@@ -42,6 +42,7 @@ export async function getPosName(kategoriUrl: any) {
             select:{
                 id: true,
                 namaPos: true,
+                posFinish: true,
                 kategori:{
                     select:{
                         namaKategori:true

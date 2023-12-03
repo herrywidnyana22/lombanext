@@ -1,7 +1,7 @@
 'use client'
 
 import clsx from "clsx"
-import { ValidateCss } from "../css/validate"
+import { ValidateCss } from "../../css/validate"
 
 interface InputProps{
     id?: string
@@ -18,6 +18,8 @@ interface InputProps{
     validateMsg?: any
     readOnly?: boolean
     onChange?: (value:any) => void
+    onBlur?: () => void,
+    isGroup?: boolean
 }
 
 export const InputText:React.FC<InputProps> = ({
@@ -81,77 +83,17 @@ export const InputText:React.FC<InputProps> = ({
                         disabled && "opacity-80 cursor-not-allowed"
                     )}
                 />     
-                <span className="text-xs text-rose-400">{validateMsg}</span>
-            </div>
-        </div>
-    )
-}
-
-export const Input:React.FC<InputProps> = ({
-    id,
-    name,
-    type,
-    value,
-    label,
-    disabled,
-    placeholder,
-    className,
-    onChange,
-    validateMsg
-}) => {
-
-    return (
-        <div>
-            <div className="relative flex flex-col">
-                
-            {
-                label && 
-                <label 
-                    htmlFor={id}
-                    className="
-                        leading-6
-                        font-medium
-                        text-slate-600
-                    "
-                >
-                    {label}
-                </label>
-            }
-                <input
-                    id={id}
-                    name={name}
-                    type={type}
-                    onChange = {onChange}
-                    placeholder={placeholder}
-                    value={value}
-                    disabled={disabled}
-                    className={clsx(`
-                        block
-                        rounded-md
-                        border-0
-                        p-2
-                        text-gray-900
-                        shadow-sm
-                        ring-1
-                        ring-inset
-                        focus:ring-blue-400
-                        ring-gray-300
-                        sm:loading-6
-                        sm:text-sm`,
-                        className,
-                        validateMsg && validateMsg[name] && ValidateCss.borderError,
-                        disabled && "opacity-80 cursor-not-allowed"
-                    )}
-                />     
+                {/* <span className="text-xs text-rose-400">{validateMsg}</span> */}
                 {validateMsg && name && (
-                    <div className="absolute -bottom-5">
-                        <span className="text-xs text-rose-400">{validateMsg[name]}</span>
-                    </div>
+                    <span className="text-xs text-rose-400">{validateMsg[name]}</span>
                 )}  
             </div>
         </div>
     )
 }
+
+
+
 
 export const InputTable:React.FC<InputProps> = ({
     id,

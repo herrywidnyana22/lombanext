@@ -9,5 +9,7 @@ export const ValidateMessage = {
 
     passMin: "Minimal 8 karakter",
     passUpcase: "Minimal mengandung huruf kapital",
-    passNumber: "Wajib mengandung angka"
+    passNumber: "Wajib mengandung angka",
+
+    groupRequired: "Salah satu wajib diisi"
 }

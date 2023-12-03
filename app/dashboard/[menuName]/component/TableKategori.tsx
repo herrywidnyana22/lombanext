@@ -13,11 +13,11 @@ import { useRouter } from "next/navigation"
 import { Loading } from '@/app/components/Loading'
 import { ShowModal } from '@/app/components/modal/Modal'
 import { AlertMessage } from '@/app/types/alertMessage'
-import { ValidateMessage } from '@/app/types/validateMesssage'
-import { InputPosComponent } from '@/app/interfaces/interfaces'
-import { Validate } from '@/app/libs/validate'
+import { InputPosComponent } from '@/app/interfaces/DataProps'
 import { ValidateCss } from '@/app/css/validate'
-import { InputText } from '@/app/components/Input'
+import { Input } from '@/app/components/Input/Input3'
+import { existValidate, duplicateValidate, requiredValidate } from '@/app/libs/validate'
+
 
 
 const TableKategori:React.FC<TableProps> = ({data}) => {
@@ -41,6 +41,9 @@ const TableKategori:React.FC<TableProps> = ({data}) => {
     // add input state
     const [inputComponents, setInputComponents] = useState<InputPosComponent[]>([])
 
+    // validation msg state
+    const [validateMsg, setValidateMsg] = useState()
+
     const router = useRouter()
 
     const onCancel = () =>{
@@ -50,6 +53,7 @@ const TableKategori:React.FC<TableProps> = ({data}) => {
         setInputComponents([])
         setIsLoading(false)
         setIsError(false)
+        setValidateMsg(undefined)
     }
 
 
@@ -94,7 +98,8 @@ const TableKategori:React.FC<TableProps> = ({data}) => {
         setSelectedDelete(i)
         const kategoriId = id
 
-        await axios.delete(`/api/kategori/${kategoriId}`)
+        await axios
+        .delete(`/api/kategori/${kategoriId}`)
         .then (() => {
             toast.success(AlertMessage.removeSuccess) 
             router.refresh()
@@ -118,7 +123,9 @@ const TableKategori:React.FC<TableProps> = ({data}) => {
             setIsLoading(true)
             const selectedData = kategoriData.filter((selected) => selected.id === id)
             const kategoriId = id
-            await axios.patch(`/api/kategori/${kategoriId}`, {
+
+            await axios
+            .patch(`/api/kategori/${kategoriId}`, {
                 data: selectedData, 
                 deletePos: deletedPos,
                 newpos: inputComponents
@@ -141,97 +148,12 @@ const TableKategori:React.FC<TableProps> = ({data}) => {
         }
     }
 
-    const onValidate = (e: any, idKategori?: string, idPos?: any) => {
-        const { value, name } = e.target;
-
-         const updatedKategoriData = kategoriData.map((kategori) => {
-            if (kategori.id === idKategori) {
-                if (name == "namaKategori"){
-                    
-                    kategori.error = []
-                    if (value === null || value.trim() === "") {
-                        kategori.error.push(ValidateMessage.required)
-                        
-                    }
-                    kategori.namaKategori = value
-
-
-                    // Check for sameField error separately after updating namaPos
-                    const kategoriValue = kategoriData.map((kategoriItem: any) => kategoriItem.namaKategori)
-    
-                    const duplicateValues = kategoriValue.filter((namaKategori: any, i: number) => 
-                        namaKategori && kategoriValue.indexOf(namaKategori) !== i
-                    )
-    
-                    kategoriData.forEach((kategoriItem: any) => {
-                        if(value !== "") {
-                            kategoriItem.error = []
-                        }
-                        if (duplicateValues.includes(kategoriItem.namaKategori)) {
-                            kategoriItem.error.push(ValidateMessage.sameField)
-                        }
-                    })
-
-                    const hasError = kategori.error.length > 0
-                    setIsError(hasError)
-
-                } else {
-
-                    const updatedPos = kategori.pos.map((pos: any) => {
-                        
-                        if (pos.id === idPos) {
-                            pos.error = []
-    
-                            if (value === null || value.trim() === "") {
-                                pos.error.push(ValidateMessage.required)
-                                
-                            }
-                            pos.namaPos = value
-                        }
-                        
-                        return pos 
-                    })
-    
-                    // Check for sameField error separately after updating namaPos
-                    const posValues = updatedPos.map((pos: any) => pos.namaPos)
-    
-                    const duplicateValues = posValues.filter((namaPos: any, i: number) => 
-                        namaPos && posValues.indexOf(namaPos) !== i
-                    )
-    
-                    updatedPos.forEach((pos: any) => {
-                        if(value !== ""){
-                            pos.error = []
-                        }
-                        
-                        if (duplicateValues.includes(pos.namaPos)) {
-                            pos.error.push(ValidateMessage.sameField)
-                        }
-                    })
-    
-                    // Check if any pos has error
-                    // set state error
-                    const hasError = updatedPos.some((pos: any) => pos.error.length > 0);
-                    setIsError(hasError);
-
-                    return { ...kategori, pos: updatedPos }
-                }
-
-            }
-
-            return kategori
-        })
-
-
-        setKategoriData(updatedKategoriData)
-    }
-
     // add input pos baru
     const addInput = () => {
         // pisah untuk bawa ke server
         const newInputComponent: InputPosComponent = {
             id: `newpos-${inputComponents.length+1}`,
-            namaPos: "",
+            name: "",
             posFinish: false,
             panitia: null,
             error: [],
@@ -242,7 +164,7 @@ const TableKategori:React.FC<TableProps> = ({data}) => {
         const addNewPos = kategoriData.map((item) => {
             const newPos = {
                 id: `newpos-${inputComponents.length+1}`, 
-                namaPos: "",
+                name: "",
                 posFinish: false,
                 panitia: null,
                 error: []
@@ -256,20 +178,35 @@ const TableKategori:React.FC<TableProps> = ({data}) => {
         
         setIsError(true)
     }
+    const handlePosChange = (e: React.ChangeEvent<HTMLInputElement>, kategoriID: string) =>{
+        const {value, name, id} = e.target
+        const updatedData = kategoriData.map((item) => {
+            if (item.id === kategoriID) {
+                const updatedPos = item.pos.map((pos: any) => {
+                        
+                    if (pos.id === id) {
+                        pos.namaPos = value
+                    }
+                    
+                    return pos 
+                })
+                return { ...item, pos: updatedPos }
+            }
+            return item
+        })
 
-    // handle input di pos baru field
-    const handleInputChange = (id: string, value: string) => {
-        if(id.includes("newpos")) {
-            setInputComponents((prevInputComponents) =>
-                prevInputComponents.map((input) => (
-                    input.id === id 
-                    ? { ...input, namaPos: value } 
-                    : input
-                ))
-            )
-            console.log(value)
-        }
+        setKategoriData(updatedData)
+    }
 
+    const handleKategoriChange = (e: React.ChangeEvent<HTMLInputElement>, dataId: string) =>{
+        const {value, name} = e.target
+        const updatedData = kategoriData.map((item) => {
+            if (item.id === dataId) {
+                return { ...item, [name]: value }
+            }
+            return item
+        })
+        setKategoriData(updatedData)
     }
     
     // remove data pos baru
@@ -356,367 +293,361 @@ const TableKategori:React.FC<TableProps> = ({data}) => {
     }
 
     useEffect(() => {
-        // ubah format data dari server, tambahkan field error buat validasi
-        const newData = data.map((dataItem) =>({
-            ...dataItem,
-            pos: dataItem.pos.map((pos: any) =>({
-                ...pos,
-                error: []
-            })),
-            error: []
-        }))
-        setKategoriData(newData)
-
-    }, [data])
+        setIsError(validateMsg && Object.keys(validateMsg).length > 0 ? true : false)
+    }, [validateMsg])
     
     return (    
     <>
-        <div className='flex flex-col gap-2'>
-            <div>{"Newpos FIeld : "+JSON.stringify(inputComponents)}</div>
-            <div>{"Kategori Data : "+JSON.stringify(kategoriData)}</div>
-            {/* <p>{isError ? "error true" : "error false"}</p> */}
-        </div>
-    {
-        data.length > 0 && 
-        <>
-        <table
-            className="
-                w-full
-                table-auto 
-                mt-6
-                border 
-                border-zinc-200 
-                text-slate-600
-                
-            "  
-        >
-            <thead>
-                <tr className="
-                    border-b 
+ 
+        {
+            data.length > 0 && 
+            <>
+            <div className='flex flex-col gap-3'>
+                <div>
+                    {JSON.stringify(kategoriData)}
+            
+                </div>
+                <div>
+                    {JSON.stringify(validateMsg)}
+                </div>
+                <div>
+                    {isError ? "true" : "false"}
+                </div>
+            </div>
+            
+            <table
+                className="
+                    w-full
+                    table-auto 
+                    mt-6
+                    border 
                     border-zinc-200 
-                    bg-zinc-100
-                ">
-                    <th className="py-1 w-10 text-center">
-                        <input 
-                            type="checkbox" 
-                            className="w-4 h-4 checked:bg-blue-400"
-                            checked={data.length === checkAll.length} 
-                            onChange={oncheckAll}
-                        />
-                    </th>
-                    <th className="py-1 w-10">#</th>
-                    <th className="py-4 text-center w-20">Kategori</th>
-                    <th className="py-4 text-center">Panitia</th>
-                    <th className="py-4 text-center">Jumlah Pos</th>
-                    <th className="py-4 text-center w-64">Pos</th>
-                    <th className="py-4 w-10"></th>
-                </tr>
-            </thead>
-            <tbody>
-            {
-                kategoriData.map((kategori: any, i) => (
-                    <tr 
-                        key={i} 
-                        className={clsx(`
-                            border-b 
-                            border-zinc-200`,
-                            editMode !== null && editMode !== i && "opacity-60 pointer-events-none"
-                        )}
-                    >
-                        <td className="py-1 w-10 text-center">
+                    text-slate-600
+                    
+                "  
+            >
+                <thead>
+                    <tr className="
+                        border-b 
+                        border-zinc-200 
+                        bg-zinc-100
+                    ">
+                        <th className="py-1 w-10 text-center">
                             <input 
                                 type="checkbox" 
                                 className="w-4 h-4 checked:bg-blue-400"
-                                checked={checkAll.includes(kategori.id)}
-                                onChange={(e) => onSingleCheck(e, kategori.id)} 
+                                checked={data.length === checkAll.length} 
+                                onChange={oncheckAll}
                             />
-                        </td>
-                        <td className="text-center border-r border-zinc-100">{i+1}</td>
-                        <td className="text-left p-3">
-                            <div className='flex flex-col'>
+                        </th>
+                        <th className="py-1 w-10">#</th>
+                        <th className="py-4 text-center w-20">Kategori</th>
+                        <th className="py-4 text-center">Panitia</th>
+                        <th className="py-4 text-center">Jumlah Pos</th>
+                        <th className="py-4 text-center w-64">Pos</th>
+                        <th className="py-4 w-10"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {
+                    kategoriData.map((kategori: any, i) => (
+                        <tr 
+                            key={i} 
+                            className={clsx(`
+                                border-b 
+                                border-zinc-200`,
+                                editMode !== null && editMode !== i && "opacity-60 pointer-events-none"
+                            )}
+                        >
+                            <td className="py-1 w-10 text-center">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-4 h-4 checked:bg-blue-400"
+                                    checked={checkAll.includes(kategori.id)}
+                                    onChange={(e) => onSingleCheck(e, kategori.id)} 
+                                />
+                            </td>
+                            <td className="text-center border-r border-zinc-100">{i+1}</td>
+                            <td className="text-left p-3">
+                                <div className='flex flex-col'>
+                                    <Input
+                                        id={`namaKategori-${i+1}`}
+                                        name='namaKategori' 
+                                        className={clsx(
+                                            editMode === i && `
+                                            py-1 px-4 
+                                            focus:ring-orange-300`,
+                                        )}
+                                        type="text" 
+                                        value={kategori.namaKategori}
+                                        readOnly={editMode !== i}
+                                        onChange={(e) => {
+                                            existValidate({e, model: "kategori", setValidateMsg, validateMsg, setIsError, isEdit: kategori.id})
+                                            requiredValidate({e, setValidateMsg, validateMsg, setIsError})
+                                            handleKategoriChange(e, kategori.id)
+                                        }}
+                                        validateMsg={validateMsg}
+                                        isError={isError}
+                                    />
+                                    <span className="text-xs text-rose-400">{kategori.error}</span>
+                                </div>
+                            </td> 
+                            <td className="
+                                p-3
+                                place-items-center
+                                text-center
+                            ">
+                            {
+                                kategori.pos.some((pos: any) => pos.panitia !== null) 
+                                ?   (
+                                        kategori.pos
+                                        .filter((pos: any) => pos.panitia !== null)
+                                        .map((pos: any) => pos.panitia.namaPanitia)
+                                        .join(", ")
+                                    )   
+                                :   "Belum ada panitia"
+                            }
+                                    
+                            </td> 
+                            <td className="p-3 text-center">
                                 <input
-                                    name='namaKategori' 
-                                    className={clsx(
+                                    name='jumlahPos'
+                                    className={clsx("w-12 text-center",
                                         editMode === i && `
-                                        border 
+                                        text-center
+                                        border  
+                                        border-zinc-200 
                                         rounded-md 
-                                        py-1 px-4
-                                        focus:border-orange-300`,
-                                        kategori.error && kategori.error.length > 0
-                                        ? ValidateCss.borderError
-                                        : "border-zinc-200" 
+                                        py-1 px-2
+                                        focus:border-orange-300`
                                     )} 
                                     type="text" 
-                                    value={kategori.namaKategori}
+                                    value={kategori.pos.length > 0 ? kategori.pos.length : "Belum ada pos"}
                                     readOnly={editMode !== i}
-                                    onChange={(e) => onValidate(e, kategori.id, i)}
+                                    disabled= {editMode === i}
                                 />
-                                <span className="text-xs text-rose-400">{kategori.error}</span>
-                            </div>
-                        </td> 
-                        <td className="
-                            p-3
-                            place-items-center
-                            text-center
-                        ">
-                        {
-                            kategori.pos.some((pos: any) => pos.panitia !== null) 
-                            ?   (
-                                    kategori.pos
-                                    .filter((pos: any) => pos.panitia !== null)
-                                    .map((pos: any) => pos.panitia.namaPanitia)
-                                    .join(", ")
-                                )   
-                            :   "Belum ada panitia"
-                        }
-                                
-                        </td> 
-                        <td className="p-3 text-center">
-                            <input
-                                name='jumlahPos'
-                                className={clsx("w-12 text-center",
-                                    editMode === i && `
-                                    text-center
-                                    border  
-                                    border-zinc-200 
-                                    rounded-md 
-                                    py-1 px-2
-                                    focus:border-orange-300`
-                                )} 
-                                type="text" 
-                                value={kategori.pos.length > 0 ? kategori.pos.length : "Belum ada pos"}
-                                readOnly={editMode !== i}
-                                disabled= {editMode === i}
-                            />
-                        </td> 
-                        <td className={clsx(
-                            `text-left 
-                            p-3 
-                            w-40`,
-                            editMode === i && "flex flex-col gap-2 items-center justify-center w-full"
-                        )}>
-                            {
-                                editMode !== i 
-                                ? kategori.pos.map((pos: any) => pos.namaPos).join(', ')
-                                : kategori.pos.map((pos: any, index:number) => (
-                                
-                                    <div key={index} className='flex flex-col'>
-                                        <div 
-                                            className='
-                                                flex 
-                                                gap-1 
-                                                items-center 
-                                                w-[full]
-                                            '
-                                        >
-                                            <Tooltip text="Atur sebagai pos finish">
-                                                <input 
-                                                    type="radio"
-                                                    defaultChecked={pos.posFinish}
-                                                    onChange={() => handlePosFinishChange(pos.id, i)}
-                                                    disabled={isLoading}
-                                                    value={1}
-                                                    name="posFinish"
-                                                />
-                                            </Tooltip>
-                                            
-                                            <InputText
-                                                name={`namaPos`} 
-                                                className={clsx(`
-                                                    border  
-                                                    rounded-md 
-                                                    py-1 px-4
-                                                    focus:border-orange-300`,
-                                                    pos.error && pos.error.length > 0 
-                                                    ? ValidateCss.borderError
-                                                    : "border-zinc-200" 
-                                                )} 
-                                                type="text" 
-                                                value= {pos.namaPos}
-                                                placeholder='Nama Pos'
-                                                onChange={(e) => {
-                                                    onValidate(e, kategori.id, pos.id)
-                                                    handleInputChange(kategori.id, e.target.value)
-                                                }}
-                                                disabled={isLoading}
-                                            />
-                                        
-                                            <Tooltip 
-                                                text={
-                                                    pos.id.includes("newpos") 
-                                                    ? 'cancel'
-                                                    : 'Panitia yg bertugas juga akan dihapus dari pos' 
-                                                }
-                                                className={clsx(
-                                                    pos.id.includes("newpos") 
-                                                    ? "-top-[20px]"
-                                                    : "-top-[45px]"
-                                                )}
+                            </td> 
+                            <td className={clsx(
+                                `text-left 
+                                p-3 
+                                w-40`,
+                                editMode === i && "flex flex-col gap-2 items-center justify-center w-full"
+                            )}>
+                                {
+                                    editMode !== i 
+                                    ? kategori.pos.map((pos: any) => pos.namaPos).join(', ')
+                                    : kategori.pos.map((pos: any, index:number) => (
+                                    
+                                        <div key={index} className='flex flex-col'>
+                                            <div 
+                                                className='
+                                                    flex 
+                                                    gap-1 
+                                                    items-center 
+                                                    w-[full]
+                                                '
                                             >
-                                                <span 
-                                                    className='
-                                                        flex items-center
-                                                        p-1
-                                                        cursor-pointer 
-                                                        rounded-md
-                                                        hover:bg-rose-500 
-                                                        hover:text-white  
-                                                    '
-                                                    onClick={() => {
-                                                        removeInputComponent(pos.id)
-                                                        
+                                                <Tooltip text="Atur sebagai pos finish">
+                                                    <input 
+                                                        type="radio"
+                                                        defaultChecked={pos.posFinish}
+                                                        onChange={() => handlePosFinishChange(pos.id, i)}
+                                                        disabled={isLoading}
+                                                        value={1}
+                                                        name="posFinish"
+                                                    />
+                                                </Tooltip>
+                                                
+                                                <Input
+                                                    id={pos.id}
+                                                    name={`namaPos`} 
+                                                    className={clsx(`
+                                                        border  
+                                                        rounded-md 
+                                                        py-1 px-4
+                                                        focus:border-orange-300`,
+                                                    )} 
+                                                    type="text" 
+                                                    value= {pos.namaPos}
+                                                    placeholder='Nama Pos'
+                                                    onChange={(e) => {
+                                                        handlePosChange(e, kategori.id)
+                                                        duplicateValidate(e, kategori.pos, setValidateMsg, validateMsg, setIsError)
                                                     }}
-                                                >
-                                                    {
+                                                    disabled={isLoading}
+                                                    isError ={isError}
+                                                    validateMsg={validateMsg}
+                                                />
+                                            
+                                                <Tooltip 
+                                                    text={
                                                         pos.id.includes("newpos") 
-                                                        ? <BsX/>
-                                                        : <BsTrash/>
+                                                        ? 'cancel'
+                                                        : 'Panitia yg bertugas juga akan dihapus dari pos' 
                                                     }
-                                                </span>
-                                            </Tooltip>
+                                                    className={clsx(
+                                                        pos.id.includes("newpos") 
+                                                        ? "-top-[20px]"
+                                                        : "-top-[45px]"
+                                                    )}
+                                                >
+                                                    <span 
+                                                        className='
+                                                            flex items-center
+                                                            p-1
+                                                            cursor-pointer 
+                                                            rounded-md
+                                                            hover:bg-rose-500 
+                                                            hover:text-white  
+                                                        '
+                                                        onClick={() => {
+                                                            removeInputComponent(pos.id)
+                                                            
+                                                        }}
+                                                    >
+                                                        {
+                                                            pos.id.includes("newpos") 
+                                                            ? <BsX/>
+                                                            : <BsTrash/>
+                                                        }
+                                                    </span>
+                                                </Tooltip>
+                                            </div>
                                         </div>
-                                        <div className='
-                                            flex 
-                                            flex-col
-                                            pl-5
-                                        '>
-                                            <span className="text-xs text-rose-400">{pos.error}</span>
-                                        </div>
-                                    </div>
-                                ))      
-                            }
-                            {
-                                editMode === i &&
-                                <button 
-                                    className={clsx(`
-                                        flex justify-center
-                                        w-20
+                                    ))      
+                                }
+                                {
+                                    editMode === i &&
+                                    <button 
+                                        className={clsx(`
+                                            flex justify-center
+                                            w-20
+                                            border
+                                            border-zinc-300
+                                            cursor-pointer 
+                                            p-1 
+                                            rounded-md 
+                                            hover:bg-indigo-500 
+                                            hover:text-white`,
+                                            isError && ValidateCss.buttonDisabled
+                                        )}
+                                        onClick={addInput}
+                                    >   
+                                        <BsPlus />
+                                    </button>
+                                }
+                                
+                            </td> 
+                            <td className="text-center p-3">
+                                <div className="flex 
+                                    gap-2 
+                                    items-center 
+                                    justify-center 
+                                ">
+                                    <div className={clsx(`
+                                        flex 
+                                        gap-1 
+                                        p-1 
+                                        transition duration-200`,
+                                        editMode === i && `
                                         border
                                         border-zinc-300
-                                        cursor-pointer 
-                                        p-1 
-                                        rounded-md 
-                                        hover:bg-indigo-500 
-                                        hover:text-white`,
-                                        isError && ValidateCss.buttonDisabled
-                                    )}
-                                    onClick={addInput}
-                                >   
-                                    <BsPlus />
-                                </button>
-                            }
-                            
-                        </td> 
-                        <td className="text-center p-3">
-                            <div className="flex 
-                                gap-2 
-                                items-center 
-                                justify-center 
-                            ">
-                                <div className={clsx(`
-                                    flex 
-                                    gap-1 
-                                    p-1 
-                                    transition duration-200`,
-                                    editMode === i && `
-                                    border
-                                    border-zinc-300
-                                    rounded-md`    
-                                )}>
-                                    <span 
-                                        className={clsx(`
-                                            p-2 
-                                            rounded-md 
-                                            hover:text-white 
-                                            cursor-pointer
-                                            transition`,
-                                            editMode === i 
-                                            ? "hover:bg-green-300"
-                                            : "hover:bg-orange-200 ",
-                                             editMode === i && isError && ValidateCss.buttonDisabled
-                                        )}
-                                        onClick={() =>onEdit(i, kategori.id)}
-                                    >
-                                    {   
-                                        editMode === i 
-                                        ? isLoading ? <Loading/> : <BsCheck2/> 
-                                        : <BsPencil/>
-                                    }
-                                    </span>
-                                    {
-                                        editMode === i &&
+                                        rounded-md`    
+                                    )}>
                                         <span 
                                             className={clsx(`
                                                 p-2 
                                                 rounded-md 
                                                 hover:text-white 
                                                 cursor-pointer
-                                                transition
-                                                hover:bg-orange-200`
+                                                transition`,
+                                                editMode === i 
+                                                ? "hover:bg-green-300"
+                                                : "hover:bg-orange-200 ",
+                                                editMode === i && isError && ValidateCss.buttonDisabled
                                             )}
-                                            onClick={onCancel}
+                                            onClick={() =>onEdit(i, kategori.id)}
                                         >
-                                            {<BsX/>}
+                                        {   
+                                            editMode === i 
+                                            ? isLoading ? <Loading/> : <BsCheck2/> 
+                                            : <BsPencil/>
+                                        }
                                         </span>
-                                    }
+                                        {
+                                            editMode === i &&
+                                            <span 
+                                                className={clsx(`
+                                                    p-2 
+                                                    rounded-md 
+                                                    hover:text-white 
+                                                    cursor-pointer
+                                                    transition
+                                                    hover:bg-orange-200`
+                                                )}
+                                                onClick={onCancel}
+                                            >
+                                                {<BsX/>}
+                                            </span>
+                                        }
+                                    </div>
+                                    <span 
+                                        className="p-2 
+                                            rounded-md 
+                                            hover:bg-rose-500 
+                                            hover:text-white 
+                                            cursor-pointer
+                                            transition
+                                        "
+                                        onClick={() => onDelete(kategori.id, i)}
+                                    >
+                                        {(isLoading && selectedDelete === i) 
+                                        ? <Loading/> 
+                                        : <BsTrash/>}
+                                    </span>
                                 </div>
-                                <span 
-                                    className="p-2 
-                                        rounded-md 
-                                        hover:bg-rose-500 
-                                        hover:text-white 
-                                        cursor-pointer
-                                        transition
-                                    "
-                                    onClick={() => onDelete(kategori.id, i)}
-                                >
-                                    {(isLoading && selectedDelete === i) 
-                                    ? <Loading/> 
-                                    : <BsTrash/>}
-                                </span>
-                            </div>
-                        </td>
-                    </tr>
-                ))
+                            </td>
+                        </tr>
+                    ))
+                }
+                
+                </tbody>
+            </table>
+            <div className={clsx(`
+                flex
+                gap-2 
+                items-center 
+                justify-end
+                mb-3`,
+                checkAll.length > 0 && "justify-between"
+            )}>
+                
+            {
+                checkAll.length > 0 &&
+                <Button 
+                    type='button'
+                    icon={isLoading ? Loading : BsTrash}
+                    disabled={isLoading}
+                    danger
+                    onClick={onDeleteAll}
+                    text={`Hapus ${checkAll.length}`}
+                />
             }
+                <Button 
+                    type='button'
+                    icon={ BsPlusLg }
+                    disabled= {isLoading}
+                    onClick={() => {
+                        ShowModal({
+                            content: <FormAddKategori/>, 
+                            title:"Tambah Kategori Lomba"
+                        })
+                    }} 
+                />
+            </div>
             
-            </tbody>
-        </table>
-        <div className={clsx(`
-            flex
-            gap-2 
-            items-center 
-            justify-end
-            mb-3`,
-            checkAll.length > 0 && "justify-between"
-        )}>
-            
-        {
-            checkAll.length > 0 &&
-            <Button 
-                type='button'
-                icon={isLoading ? Loading : BsTrash}
-                disabled={isLoading}
-                danger
-                onClick={onDeleteAll}
-                text={`Hapus ${checkAll.length}`}
-            />
+            </>
         }
-            <Button 
-                type='button'
-                icon={ BsPlusLg }
-                disabled= {isLoading}
-                onClick={() => {
-                    ShowModal({
-                        content: <FormAddKategori/>, 
-                        title:"Tambah Kategori Lomba"
-                    })
-                }} 
-            />
-        </div>
-        
-        </>
-    }
         
     </>
         

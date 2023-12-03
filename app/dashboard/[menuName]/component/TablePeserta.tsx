@@ -12,14 +12,40 @@ import axios from 'axios'
 import { dataFormat } from '@/app/libs/Formater'
 import Button from '@/app/components/Button'
 import { ShowModal } from '@/app/components/modal/Modal'
+import useSWR, {useSWRConfig} from 'swr'
 
 interface TablePesertaProps{
-  data?: any[]
+  menu?: string
   pos?: any
   posId?: any
 }
 
-const TablePeserta:React.FC<TablePesertaProps> = ({data, pos, posId}) => {
+const TablePeserta:React.FC<TablePesertaProps> = ({menu, pos, posId}) => {
+    const posID = posId.id
+    const { mutate } = useSWRConfig()
+    const fetcher = async () => {
+
+        const dataMenu = await axios.get(`/api/peserta/${menu}`)
+        return dataMenu.data
+    }
+
+    const { data } = useSWR(menu, fetcher)
+
+    // data && data.sort((a: any, b: any) => {
+    //     // Split and convert waktu strings into an array of numbers for comparison
+    //     const timeA = a.waktu.split(':').map(Number);
+    //     const timeB = b.waktu.split(':').map(Number);
+
+    //     // Compare hours, minutes, seconds, and milliseconds
+    //     for (let i = 0; i < timeA.length; i++) {
+    //         if (timeA[i] < timeB[i]) return -1;
+    //         if (timeA[i] > timeB[i]) return 1;
+    //     }
+
+    //     // If all components are equal, the objects are considered equal
+    //     return 0;
+    // })
+
     const [pesertaData, setPesertaData] = useState(data)
     const [posName, setPosName] = useState(pos)
 
@@ -40,7 +66,15 @@ const TablePeserta:React.FC<TablePesertaProps> = ({data, pos, posId}) => {
     // Delete prosedure
     const oncheckAll = useCallback(() =>{
         setIsCheckAll(!isCheckAll)
-        setCheckAll(isCheckAll ? [] : data ? data.map((item) => item.id) : [])
+        setCheckAll(
+            isCheckAll 
+            ? [] 
+            : data 
+                ? data
+                    .filter((item: any) => item.pos.some((p:any) => p.id === posID))
+                    .map((item: any) => item.id)
+                : []
+        )
         
     },[data, isCheckAll])
     
@@ -55,12 +89,14 @@ const TablePeserta:React.FC<TablePesertaProps> = ({data, pos, posId}) => {
     }
     
     // use patch because bring more than 1 iD
-    const onDeleteAll = async() =>{
+    const onDeleteSelected = async() =>{
         setIsLoading(true)
 
-        await axios.patch(`/api/peserta`, {data: checkAll})
+        await axios
+        .patch(`/api/peserta`, {data: checkAll, posId: posId.id})
         .then (() => {
             toast.success(AlertMessage.removeSuccess) 
+            mutate(menu) 
             router.refresh()
         })
         .catch (() =>{
@@ -80,7 +116,8 @@ const TablePeserta:React.FC<TablePesertaProps> = ({data, pos, posId}) => {
 
         await axios.delete(`/api/peserta/${pesertaId}`)
         .then (() => {
-            toast.success(AlertMessage.removeSuccess) 
+            toast.success(AlertMessage.removeSuccess)
+            mutate(menu) 
             router.refresh()
         })
         .catch (() =>{
@@ -94,18 +131,21 @@ const TablePeserta:React.FC<TablePesertaProps> = ({data, pos, posId}) => {
     
     }
 
-    useEffect(() =>{
-       dataFormat(data, setPesertaData)
-    },[data])
+    // useEffect(() =>{
+    //    dataFormat(data, setPesertaData)
+    //    console.log(data)
+    //    console.log(posID)
+    // },[data])
     
     return (
     <>
         <div className='flex flex-col gap-2 debugging'>
-            <div>{JSON.stringify(pesertaData)}</div>
-            <div>{JSON.stringify(posId)}</div>
+            <div>{JSON.stringify(checkAll)}</div>
+            <div>{JSON.stringify(data)}</div>
+            {/* <div>{posId}</div> */}
         </div>
         {
-            pesertaData && pesertaData.length > 0 && (
+            data && data.length > 0 && (
             <>
             <table
                 className="
@@ -145,7 +185,7 @@ const TablePeserta:React.FC<TablePesertaProps> = ({data, pos, posId}) => {
                 </thead>
                 <tbody>
                 {
-                    pesertaData && pesertaData.map((peserta, pesertaIndex) =>(
+                    data && data.map((peserta: any, pesertaIndex: number) =>(
                         <tr 
                             key={pesertaIndex}
                             className={clsx(`
@@ -282,7 +322,7 @@ const TablePeserta:React.FC<TablePesertaProps> = ({data, pos, posId}) => {
                     icon={isLoading ? Loading : BsTrash}
                     disabled={isLoading}
                     danger
-                    onClick={onDeleteAll}
+                    onClick={onDeleteSelected}
                     text={`Hapus ${checkAll.length}`}
                 />
             }
